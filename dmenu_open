@@ -1,0 +1,69 @@
+#!/bin/bash
+# Search for files & dirs using dmenu and xdg_open
+
+#-------------------------------------------------------------------------------
+# Variables
+#-------------------------------------------------------------------------------
+
+# Number of entries to show in dmenu
+entries="15"
+
+# File manager to use
+file_manager="thunar"
+
+# dmenu-command
+dmenu_cmd="dmenu -nb #101010 -nf #bbbbbb -sb #ff6040 -sf #101010 -fn Terminus-10 -i -l ${entries} -p Open"
+
+# Should we search hidden directories/files too (yes/no)?
+search_hidden_dirs="yes"
+
+#-------------------------------------------------------------------------------
+# Functions
+#-------------------------------------------------------------------------------
+
+search_dmenu(){
+    case ${search_hidden_dirs} in
+        yes)
+            # Include all files
+            path="$(find "$HOME" | \
+                # Strip $HOME from output
+                sed "s_^"$HOME/"__g" | \
+                ${dmenu_cmd})" ;;
+        no)
+            # Exclude all elements starting with a dot
+            path="$(find "$HOME" ! -path "*/\.*" | \
+                # Strip $HOME from output
+                sed "s_^"$HOME/"__g" | \
+                ${dmenu_cmd})" ;;
+    esac
+}
+
+#-------------------------------------------------------------------------------
+# Script
+#-------------------------------------------------------------------------------
+
+# Send list of folders/files to dmenu
+search_dmenu
+
+# If user exits, end program (needs to be first) to prevent $file_manager from
+# starting anyway
+[[ -z "${path}" ]] && exit 0
+
+# If $path is $HOME, open and exit
+if [ "${path}" = "${HOME}" ]; then
+    ${file_manager} "$HOME"
+    exit 0
+else
+    # Prefix whatever we have with $HOME (since we removed $HOME from output in
+    # the set_path-function)
+    path="${HOME}/${path}"
+fi
+
+# Open with prefered app if a file is chosen
+if [ -f "${path}" ]; then
+    # Redirect all output to nowhere to keep things tidy
+    xdg-open "${path}" &> /dev/null
+elif [ -d "${path}" ]; then
+    # It's a directory, open with file-manager
+    ${file_manager} "${path}"
+fi

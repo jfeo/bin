@@ -1,0 +1,92 @@
+#!/bin/bash
+# Simple script to start slock
+# Based on: https://bbs.archlinux.org/viewtopic.php?pid=903057#p903057
+ 
+# Amount of time to wait on wrong password before turning off the screen
+timeout=2
+ 
+# Xorg lock program
+lockcmd="slock"
+ 
+#-------------------------------------------------------------------------------
+# Functions
+#-------------------------------------------------------------------------------
+ 
+add_module(){
+	# Not needed since better ways were found
+	# lsmod | cut -d" " -f1 | egrep -o -e "ohci1394" -e "firewire_ohci" | paste -sd " "
+	case "$(echo $fw_modules | wc -w)" in
+	1)
+		fw_modules="$fw_modules $1" ;;
+	0)
+		fw_modules="$1" ;;
+	esac
+ 
+}
+ 
+# Sudo might be needed to remove modules
+# This requires editing the /etc/sudoers file
+disable_firewire(){
+	# Check for ohci1394
+	#if [ "$(lsmod | grep -o ohci1394)" = "ohci1394" ]; then
+	#    add_module ohci1394
+	#    # Remove module
+	#    rmmod ohci1394
+	#fi
+	# Check for firewire_ohci
+	#if [ "$(lsmod | grep -o firewire_ohci)" = "firewire_ohci" ]; then
+	#	# Append module to variable
+	#    add_module firewire_ohci
+	#    # Remove module
+    # 	rmmod firewire_ohci
+ 	#fi
+	
+	# Make a list of loaded firewire-modules (with spaces 'n' shit)
+	fw_modules="$(lsmod | cut -d" " -f1 | grep -o -e "ohci1394" -e "firewire_ohci" | paste -sd " ")"
+	
+	# Check list for found items
+	if [ "$(echo "$fw_modules" | grep -q -e ohci1394 -e firewire_ohci && echo $?)" = "0" ]; then
+		# Remove all found modules
+		rmmod "$fw_modules"
+ 
+		# Make command for probing modules (when unlocking)
+		#reload_firewire_modules="modprobe ${fw_modules}"
+	fi
+}
+# Reenable all disabled modules (if any)
+reenable_modules(){
+	echo "$fw_modules" | grep -q -e ohci1394 -e firewire_ohci && modprobe "${fw_modules}"
+}
+ 
+lock_screen(){
+    # Lock screen
+    ${lockcmd}
+ 
+    # Restore dpms settings
+    xset dpms 0 0 120
+    
+    # Reenable removed modules
+    reenable_modules
+}
+ 
+ 
+#-------------------------------------------------------------------------------
+#  SCRIPT
+#-------------------------------------------------------------------------------
+ 
+# Disable firewire to prevent DMA-attacks such as Inception [1]
+disable_firewire
+ 
+# Lock screen
+lock_screen &
+#( ${lockcmd} && xset dpms 0 0 120 && reenable_modules ) &
+ 
+# Set screen blanking time while locked
+xset dpms 0 0 ${timeout}
+ 
+# Force the screen to turn off while locked
+xset dpms force off
+ 
+ 
+### REFERENCES ###
+# 1: http://www.hermann-uwe.de/blog/physical-memory-attacks-via-firewire-dma-part-1-overview-and-mitigation

@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# dmenu command
+dmenu='dmenu -i -p System -nb #101010 -nf #bbbbbb -sb #ff6040 -sf #101010 -fn Terminus-10'
+
+# time before auto-halt
+
+wait_time=60s
+
+cmd=$(echo -e "lock\nlog-out\nshutdown\nreboot\nsuspend" | $dmenu)
+
+sleep_action(){
+  sleep ${wait_time}
+  case $1 in
+    shutdown)
+      sudo systemctl poweroff
+      ;;
+    reboot)
+       sudo systemctl reboot
+       ;;
+    esac
+}
+
+case $cmd in
+  shutdown)
+    # shutdown if no intervention
+    sleep_action $cmd &
+    # set pid of command
+    sleep_pid="$!"
+
+    # ask to confirm shutdown
+    zenity --question --text "Do you really want to shutdown?"
+    [ $? = 0 ] && sudo systemctl poweroff || kill ${sleep_pid}
+    ;;
+  reboot)
+    # Reboot if no intervention
+    sleep_action $cmd &
+    # Set pid of command
+    sleep_pid="$!"
+
+    # Ask to confirm reboot
+    zenity --question --text "Do you really want to reboot?"
+    [ $? = 0 ] && sudo systemctl reboot || kill ${sleep_pid}
+    ;;
+  suspend)
+    # Lock screen
+    /home/$USER/bin/lockscreen
+    # Suspend
+    sudo systemctl suspend
+    ;;
+  lock)
+    /home/$USER/bin/lockscreen
+    ;;
+  log-out)
+    i3-msg exit
+    ;;
+esac
