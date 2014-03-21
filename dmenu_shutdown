@@ -13,10 +13,10 @@ sleep_action(){
   sleep ${wait_time}
   case $1 in
     shutdown)
-      sudo systemctl poweroff
+      systemctl poweroff
       ;;
     reboot)
-       sudo systemctl reboot
+       systemctl reboot
        ;;
     esac
 }
@@ -30,7 +30,7 @@ case $cmd in
 
     # ask to confirm shutdown
     zenity --question --text "Do you really want to shutdown?"
-    [ $? = 0 ] && sudo systemctl poweroff || kill ${sleep_pid}
+    [ $? = 0 ] && systemctl poweroff || kill ${sleep_pid}
     ;;
   reboot)
     # Reboot if no intervention
@@ -40,7 +40,7 @@ case $cmd in
 
     # Ask to confirm reboot
     zenity --question --text "Do you really want to reboot?"
-    [ $? = 0 ] && sudo systemctl reboot || kill ${sleep_pid}
+    [ $? = 0 ] && systemctl reboot || kill ${sleep_pid}
     ;;
   suspend)
     # Lock screen
