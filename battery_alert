@@ -1,0 +1,40 @@
+#!/bin/bash
+
+CHARGE_LOW=10
+TIMER_LOW=2000
+CHARGE_CRITICAL=3
+CHARGE_SUSPEND=0
+SLEEP_TIMER=10
+
+last_state=""
+warned_low=false
+warned_critical=false
+while true; do
+  state=$(acpi | sed -n 's/Battery [0-9]: \([A-Z]\).*, .*/\1/p')
+  chg=$(acpi | sed -n 's/Battery [0-9]:.*, \([0-9]\{1,3\}\)%.*/\1/p');
+
+  if [[ "$state" = "C" && $last_state = "D" ]]; then
+    notify-send -u low "Charger connected" "Close call there! Or was it?"
+  fi
+
+  if [ "$state" = "D" ]; then
+    if [[ $chg -le $CHARGE_CRITICAL && $warned_critical = false ]]; then
+      warned_critical=true
+      warned_low=true
+      notify-send -u critical "Battery level critical" "$chg% charge left. System will suspend soon if not plugged in."
+      beep
+    elif [[ $chg -le $CHARGE_LOW && $warned_low = false ]]; then
+      warned_low=true
+      notify-send -u normal "Battery level low" "$chg% charge left. You should think about plugging in soon."
+    elif [ $chg -le $CHARGE_SUSPEND ]; then
+      systemctl suspend
+    fi
+  fi
+
+  if [ $state = "C" ]; then
+    warned_low=false
+    warned_critical=false
+  fi
+  last_state=$state
+  sleep $SLEEP_TIMER
+done

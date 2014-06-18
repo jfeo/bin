@@ -1,5 +1,5 @@
 #!/bin/bash
-# Search for files & dirs using dmenu and xdg_open
+
 
 #-------------------------------------------------------------------------------
 # Variables
@@ -12,7 +12,8 @@ entries="15"
 file_manager="thunar"
 
 # dmenu-command
-dmenu_cmd="dmenu -nb #101010 -nf #bbbbbb -sb #ff6040 -sf #101010 -fn Terminus-10 -i -l ${entries} -p Open"
+#dmenu_cmd="dmenu -nb #101010 -nf #bbbbbb -sb #ff6040 -sf #101010 -fn Terminus-14 -i -l ${entries} -p Open"
+dmenu_cmd="dmenu -p Open -h 23 -nb #E9E9E9 -nf #000000 -sb #E9E9E9 -sf #2575EE -fn Convergence-14:normal -i -l ${entries}"
 
 # Should we search hidden directories/files too (yes/no)?
 search_hidden_dirs="yes"

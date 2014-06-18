@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # dmenu command
-dmenu='dmenu -i -p System -nb #101010 -nf #bbbbbb -sb #ff6040 -sf #101010 -fn Terminus-10'
-
+dmenu='dmenu -i -p System -h 23 -nb #E9E9E9 -nf #000000 -sb #E9E9E9 -sf #2575EE -fn Convergence-14:normal'
 # time before auto-halt
 
 wait_time=60s
@@ -46,7 +45,7 @@ case $cmd in
     # Lock screen
     /home/$USER/bin/lockscreen
     # Suspend
-    sudo systemctl suspend
+    systemctl suspend
     ;;
   lock)
     /home/$USER/bin/lockscreen
