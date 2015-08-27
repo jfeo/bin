@@ -1,0 +1,137 @@
+#!/usr/bin/python
+"""
+Author: Jens Feodor Nielsen
+
+Control randr with dmenu. Based on the script by 'sdellysse', as can be found on
+thread: https://bbs.archlinux.org/viewtopic.php?id=91937
+download: https://php.radford.edu/~sdellysse/drandr.rb
+"""
+
+import sys
+from subprocess import Popen, call, check_output, PIPE, CalledProcessError
+
+class Drandr:
+    """
+    A class for implementing a program that can use the dmenu program to interact with xrandr.
+    """
+
+    def __init__(self, argv):
+        self.argv = argv
+
+    def display(self, prompt, items):
+        """
+        Return the output of dmenu with the class-wide args and the given prompt and items.
+        """
+        dmenu = Popen(["dmenu"] + self.argv[1:] + ["-p", prompt], stdin=PIPE, stdout=PIPE)
+        result = dmenu.communicate(input=bytes("\n".join(items), 'utf-8'))[0]
+        if dmenu.returncode != 0:
+            sys.exit(1)
+        return result.decode('utf-8')[:-1]
+
+    def query_xrandr(self, args):
+        """
+        Return the line output of the xrandr command with the given args.
+        """
+        try:
+            lines = check_output(["xrandr", " ".join(args)]).decode('utf-8').split("\n")[1:]
+        except CalledProcessError:
+            sys.exit(1)
+        else:
+            return lines
+
+    def get_outputs(self, contains=None):
+        """
+        Returns a list of outputs found by Xrandr.
+        """
+        lines = self.query_xrandr(['-q'])
+        if not contains is None:
+            lines = [l for l in lines if contains in l]
+        lines = [l.split()[0] for l in lines if not l.startswith(" ")\
+                                                and not l == ""]
+        return lines
+
+    def get_output_settings(self, output):
+        """
+        Get the possible settings for a specific output.
+        """
+        output_found = False
+        lines = self.query_xrandr(['-q'])
+        result = []
+        for line in lines[1:-1]:
+            if output_found:
+                if line.startswith(' '):
+                    result.append(line.split()[0])
+                else:
+                    output_found = False
+            else:
+                if line.startswith(output):
+                    output_found = True
+                    result.append(line.split()[0])
+                else:
+                    result.append(line.split()[0])
+        return result
+
+    def get_output_state(self, output):
+        """
+        Get the current state of an output.
+        """
+        try:
+            [line] = [l for l in self.query_xrandr(['-q']) if l.startswith(output)]
+        except ValueError:
+            sys.exit(1)
+        else:
+            line = line.split()
+            if line[1] == "connected":
+                return tuple([int(i) for i in line[2].replace('x', '+').split('+')])
+            else:
+                return None
+
+
+def main(argv):
+    """
+    The entrypoint for the program.
+    """
+    drandr = Drandr(argv)
+    command = drandr.display('dmenu randr', ['Connect', 'Disconnect', 'Resize', 'Rotate'])
+    if command == "Connect":
+        output = drandr.display('Connect which output?', drandr.get_outputs(" connected"))
+        output_info = drandr.get_output_settings(output)
+        mode = [int(i) for i in drandr.display('Which resolution?', output_info).split('x')]
+        anchor = drandr.display('Anchor to', drandr.get_outputs(' connected'))
+        side = drandr.display('Side', ['left', 'right', 'top', 'bottom'])
+        try:
+            (anchor_w, anchor_h, anchor_x, anchor_y) = [int(i) for i in
+                                                        drandr.get_output_state(anchor)]
+        except ValueError:
+            sys.exit(1)
+        position = '0x0'
+        if side == 'left':
+            position = '%dx%d' % (anchor_x - mode[0], anchor_y)
+        elif side == 'right':
+            position = '%dx%d' % (anchor_x + anchor_w, anchor_y)
+        elif side == 'top':
+            position = '%dx%d' % (anchor_x, anchor_y - mode[1])
+        elif side == 'bottom':
+            position = '%dx%d' % (anchor_x, anchor_y + anchor_h)
+        else:
+            sys.exit(0)
+        call(['xrandr', '--output', output, '--mode', "x".join([str(s) for s in mode]),
+              '--pos', position])
+    elif command == "Disconnect":
+        output = drandr.display('Which output?', drandr.get_outputs(' connected'))
+        call(['xrandr', '--output', output, '--off'])
+    elif command == "Resize":
+        output = drandr.display('Which output?', drandr.get_outputs(' connected'))
+        output_info = drandr.get_output_settings(output)
+        mode = [int(i) for i in drandr.display('Which resolution?', output_info).split('x')]
+        call(['xrandr', '--output', output, '--mode', "x".join([str(s) for s in mode])])
+    elif command == "Rotate":
+        output = drandr.display('Which output?', drandr.get_outputs(' connected'))
+        orientation = drandr.display('Which orientation?', ['normal', 'right', 'inverted', 'left'])
+        call(['xrandr', '--output', output, '--rotate', orientation])
+    else:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main(sys.argv)
