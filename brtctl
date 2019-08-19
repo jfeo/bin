@@ -1,0 +1,39 @@
+#/bin/bash
+function showhelp {
+   echo -e "volctl controls volume, and sends notifications\nUsage: either use first argument 'toggle', to toggle sound, or use first argument 'vol' followed by a volume in the form of 10%[+|-]."
+  exit 1 
+  }
+
+if [ "$1" = "" ]; then
+  showhelp
+fi
+if [ "$2" = "" ]; then
+  showhelp
+fi
+
+light $1 $2
+
+pct=$(light -G)
+pct=${pct/.*}
+
+on=$((1+$pct/5))
+off=$((1+(100-$pct+4)/5))
+#echo ${$(light -G)/.*}
+bar=$(seq -s "█" $on | sed 's/[0-9]//g')$(seq -s "─" $off | sed 's/[0-9]//g')
+
+icon="full"
+if [ $pct -lt 80 ]; then
+	icon="high";
+fi
+if [ $pct -lt 60 ]; then
+	icon="medium";
+fi
+if [ $pct -lt 40 ]; then
+	icon="low";
+fi
+if [ $pct -lt 20 ]; then
+	icon="off";
+fi
+
+dunstify -u low -r 1235 -i notification-display-brightness-$icon $bar
+
