@@ -2,9 +2,10 @@
 
 CHARGE_LOW=10
 TIMER_LOW=2000
-CHARGE_CRITICAL=3
-CHARGE_SUSPEND=0
+CHARGE_CRITICAL=5
+CHARGE_SUSPEND=1
 SLEEP_TIMER=10
+SUSPEND_TIMER=10
 
 last_state=""
 warned_low=false
@@ -14,21 +15,34 @@ while true; do
   chg=$(acpi | sed -n 's/Battery [0-9]:.*, \([0-9]\{1,3\}\)%.*/\1/p');
 
   if [[ "$state" = "C" && $last_state = "D" ]]; then
-    notify-send -u low "Charger connected" "Close call there! Or was it?"
+    dunstify -i ac-adapter -u low "Charger connected" "Close call there! Or was it?"
   fi
 
   if [ "$state" = "D" ]; then
-    if [[ $chg -le $CHARGE_CRITICAL && $warned_critical = false ]]; then
+		if [ $chg -le $CHARGE_SUSPEND ]; then	
+			for i in $(seq 10 -1 0);
+			do
+				state=$(acpi | sed -n 's/Battery [0-9]: \([A-Z]\).*, .*/\1/p')
+				if [ $state = "C" ]; then
+				  dunstify -i ac-adapter -r 5555 "Charged connected" "Close call there! Or was it?" -u low 
+					no_suspend=1
+					break
+				fi
+			    dunstify -i notification-battery-low -r 5555 "Oh Fu-" "Suspending in $i seconds!" -u critical 
+				sleep 1
+			done
+			[ -z $no_suspend ] || break
+			state=$(acpi | sed -n 's/Battery [0-9]: \([A-Z]\).*, .*/\1/p')
+      [ $state = "D" ] && systemctl suspend
+    elif [[ $chg -le $CHARGE_CRITICAL && $warned_critical = false ]]; then
       warned_critical=true
       warned_low=true
-      notify-send -u critical "Battery level critical" "$chg% charge left. System will suspend soon if not plugged in."
+      dunstify -i notification-battery-low -r 5555 -u critical "Battery level critical" "$chg% charge left. System will suspend soon if not plugged in."
       beep
     elif [[ $chg -le $CHARGE_LOW && $warned_low = false ]]; then
       warned_low=true
-      notify-send -u normal "Battery level low" "$chg% charge left. You should think about plugging in soon."
-    elif [ $chg -le $CHARGE_SUSPEND ]; then
-      systemctl suspend
-    fi
+      dunstify -i notification-battery-low -r 5555 -u normal "Battery level low" "$chg% charge left. You should think about plugging in soon."
+		fi
   fi
 
   if [ $state = "C" ]; then
